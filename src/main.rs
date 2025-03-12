@@ -1,6 +1,65 @@
 use docx_rs::{Docx, Table, TableRow, TableCell, Paragraph, Run};
 use serde_json::{Value, Map};
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Deserialize, Serialize)]
+struct TableConfig {
+    headers: Vec<HeaderConfig>,
+    data: Vec<HashMap<String, String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct HeaderConfig {
+    field: String,
+    display_name: String,
+    #[serde(default = "default_enabled")]
+    enabled: bool,
+}
+
+fn default_enabled() -> bool {
+    true
+}
+
+// 表格生成主函数
+fn generate_table(config: &TableConfig) -> Result<Docx, Box<dyn std::error::Error>> {
+    let mut docx = Docx::default();
+
+    // 过滤并排序启用的表头
+    let enabled_headers: Vec<&HeaderConfig> = config.headers
+        .iter()
+        .filter(|h| h.enabled)
+        .collect();
+
+    // 构建表头行
+    let header_cells: Vec<TableCell> = enabled_headers.iter()
+        .map(|h| {
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(&h.display_name)))
+        })
+        .collect();
+    let header_row = TableRow::new(header_cells);
+
+    // 构建数据行
+    let mut table = Table::new(vec![header_row]);
+    for item in &config.data {
+        let data_cells: Vec<TableCell> = enabled_headers.iter()
+            .map(|h| {
+                let value = item.get(&h.field)
+                    .map(|s| s.as_str())
+                    .unwrap_or("");
+
+                TableCell::new()
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(value)))
+            })
+            .collect();
+
+       table =  table.add_row(TableRow::new(data_cells));
+    }
+
+    docx = docx.add_table(table);
+    Ok(docx)
+}
 
 fn generate_table_from_json(
     json_data: &str,
@@ -45,22 +104,27 @@ fn generate_table_from_json(
     docx = docx.add_table(table);
     Ok(docx)
 }
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let json_data = r#"
-        [
-            {"user_name": "张三", "dept": "技术部", "join_date": "2020-03-12", "salary": "****"},
-            {"user_name": "李四", "dept": "市场部", "join_date": "2021-07-01"}
+    // 示例JSON配置
+    let json = r#"
+    {
+        "headers": [
+            {"field": "id", "display_name": "编号", "enabled": true},
+            {"field": "name", "display_name": "姓名", "enabled": true},
+            {"field": "salary", "display_name": "薪资", "enabled": true}
+        ],
+        "data": [
+            {"id": "1", "name": "张三", "salary": "10000"},
+            {"id": "2", "name": "李四", "salary": "15000"}
         ]
+    }
     "#;
 
-    let mut header_map = HashMap::new();
-    header_map.insert("user_name", "员工姓名");
-    header_map.insert("dept", "部门");
+    // 解析配置
+    let config: TableConfig = serde_json::from_str(json)?;
 
-    let allowed_fields = vec!["user_name", "dept", "join_date"];
-
-    let docx = generate_table_from_json(json_data, &header_map, &allowed_fields)?;
+    // 生成文档
+    let docx = generate_table(&config)?;
     let path = std::path::Path::new("./hello.docx");
     let file = std::fs::File::create(path).unwrap();
     docx.build().pack(file)?;
