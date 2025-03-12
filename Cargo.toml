@@ -1,0 +1,16 @@
+[package]
+name = "docx-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tonic = "0.12.3"          # gRPC 核心库
+prost = "0.13.5"          # Protobuf 编解码
+docx-rs = "0.4"
+tokio = { version = "1.0", features = ["full"] }  # 异步运行时
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.140"
+
+
+[build-dependencies]
+tonic-build = "0.12.3"    # Protobuf 编译工具
