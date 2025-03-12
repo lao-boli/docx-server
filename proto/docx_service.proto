@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package docx_service;
+
+service DocxService {
+  rpc GenerateTable(TableConfigReq) returns (DocxResponse) {}
+}
+
+message TableConfigReq {
+  repeated ProtoHeaderConfig headers = 1;
+  repeated RowData data = 2;
+}
+message RowData {
+  map<string, string> cells = 1;
+}
+
+message ProtoHeaderConfig {
+  string field = 1;
+  string display_name = 2;
+  bool enabled = 3;
+}
+
+message DocxResponse {
+  bytes docx_content = 1;
+  string file_name = 2;
+}
