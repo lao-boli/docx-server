@@ -3,6 +3,10 @@ name = "docx-server"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib"]  # 关键配置
+
+
 [dependencies]
 tonic = "0.12.3"          # gRPC 核心库
 prost = "0.13.5"          # Protobuf 编解码
